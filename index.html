@@ -607,6 +607,7 @@ input[type=color]:hover{border-color:var(--primary)}
 .sum-cell-n{font-size:20px;font-weight:700;color:var(--text);line-height:1.1}
 .sum-cell-l{font-size:12px;color:var(--text-2);margin-top:4px}
 .sum-cell-t{font-size:11px;color:var(--text-3);margin-top:6px;opacity:.85}
+.sum-range{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 /* ============ 灵感与思考 ============ */
 .insp-card{border:1px solid var(--border);background:var(--bg-soft);border-radius:var(--radius-sm);padding:14px;margin-bottom:11px;transition:.15s}
 .insp-card:hover{border-color:var(--primary)}
@@ -5061,9 +5062,20 @@ function renderArchives(){
    只认“完成状态”（待办已完成 / 项目已完成 / 文献已读 / 投稿接收 / 灵感已回答 / 工作汇报）。
    规则：先标记完成、之后归档的，仍计入；未标记完成、只是归档的，不计入。 */
 let summaryPeriod='month';
+let summaryCustom={start:'',end:''};
 const SUMMARY_PERIODS=[['week','本周'],['month','本月'],['year','本年']];
 const SUMMARY_CATS=['待办完成','项目完成','文献读完','论文接收','灵感已回答','工作汇报'];
-function setSummaryPeriod(p){ summaryPeriod=p; renderSummary(); }
+function setSummaryPeriod(p){ summaryPeriod=p; syncSummaryControls(); renderSummaryBody(); }
+function syncSummaryControls(){ $$('#settingsSummary .seg-btn').forEach(b=>b.classList.toggle('active', b.dataset.p===summaryPeriod)); }
+/* 自定义区间：读取起止日期，切为自定义并刷新结果（只刷新结果区，避免日期输入框失焦） */
+function setSummaryRange(){
+  const s=document.getElementById('sumStart'), e=document.getElementById('sumEnd');
+  if(s) summaryCustom.start=s.value;
+  if(e) summaryCustom.end=e.value;
+  summaryPeriod='custom';
+  syncSummaryControls();
+  renderSummaryBody();
+}
 /* 标记完成时打时间戳，取消完成时清除（供统计按周期归档） */
 function stampDone(rec, isDone, field){
   if(!rec) return;
@@ -5072,6 +5084,12 @@ function stampDone(rec, isDone, field){
 }
 function periodRange(p){
   const base=new Date(todayStr()+'T00:00:00');
+  if(p==='custom'){
+    let s=summaryCustom.start, e=summaryCustom.end;
+    if(!s||!e){ s=fmtDate(new Date(base.getFullYear(),base.getMonth(),1)); e=fmtDate(new Date(base.getFullYear(),base.getMonth()+1,0)); }
+    if(s>e){ const t=s; s=e; e=t; }
+    return {start:s, end:e};
+  }
   let s,e;
   if(p==='week'){ const dow=(base.getDay()+6)%7; s=new Date(base); s.setDate(base.getDate()-dow); e=new Date(s); e.setDate(s.getDate()+6); }
   else if(p==='year'){ s=new Date(base.getFullYear(),0,1); e=new Date(base.getFullYear(),11,31); }
@@ -5102,12 +5120,29 @@ function summaryTotals(){
 }
 function renderSummary(){
   const el=document.getElementById('settingsSummary'); if(!el) return;
+  if(!el.querySelector('#sumBody')){
+    const seg='<div class="seg">'+SUMMARY_PERIODS.map(([p,n])=>'<button class="seg-btn'+(summaryPeriod===p?' active':'')+'" data-p="'+p+'" onclick="setSummaryPeriod(\''+p+'\')">'+n+'</button>').join('')+
+      '<button class="seg-btn'+(summaryPeriod==='custom'?' active':'')+'" data-p="custom" onclick="setSummaryPeriod(\'custom\')">自定义</button></div>';
+    const range='<div class="sum-range">'+
+      '<span class="text-xs text-muted">起</span><input class="input" type="date" id="sumStart" style="width:152px;padding:6px 9px;font-size:12.5px" value="'+(summaryCustom.start||'')+'" onchange="setSummaryRange()">'+
+      '<span class="text-xs text-muted">止</span><input class="input" type="date" id="sumEnd" style="width:152px;padding:6px 9px;font-size:12.5px" value="'+(summaryCustom.end||'')+'" onchange="setSummaryRange()">'+
+      '<button class="btn btn-ghost btn-sm" onclick="setSummaryPeriod(\'custom\')">应用自定义区间</button></div>';
+    el.innerHTML='<div class="card"><div class="card-head"><div class="card-title">完成总结</div>'+seg+'</div>'+range+'<div id="sumBody"></div></div>';
+  } else {
+    syncSummaryControls();
+    const s=document.getElementById('sumStart'), e=document.getElementById('sumEnd');
+    if(s) s.value=summaryCustom.start||'';
+    if(e) e.value=summaryCustom.end||'';
+  }
+  renderSummaryBody();
+}
+function renderSummaryBody(){
+  const b=document.getElementById('sumBody'); if(!b) return;
   const r=periodRange(summaryPeriod);
   const E=summaryEntries();
   const totals=summaryTotals();
-  const seg='<div class="seg">'+SUMMARY_PERIODS.map(([p,n])=>'<button class="seg-btn'+(summaryPeriod===p?' active':'')+'" onclick="setSummaryPeriod(\''+p+'\')">'+n+'</button>').join('')+'</div>';
-  let html='<div class="card"><div class="card-head"><div class="card-title">完成总结</div>'+seg+'</div>';
-  html+='<div class="text-xs text-muted" style="margin-bottom:10px">统计区间：'+r.start+' ~ '+r.end+'　·　统计“已完成/已接收/已读/已回答”；完成后归档的仍计入，未完成仅归档的不计入</div>';
+  const label=summaryPeriod==='custom'?'自定义':(({week:'本周',month:'本月',year:'本年'})[summaryPeriod]||'');
+  let html='<div class="text-xs text-muted" style="margin-bottom:10px">统计区间（'+label+'）：'+r.start+' ~ '+r.end+'　·　统计“已完成/已接收/已读/已回答”；完成后归档的仍计入，未完成仅归档的不计入</div>';
   html+='<div class="sum-total"><span class="sum-num">'+E.length+'</span> 项完成</div>';
   html+='<div class="sum-grid">'+SUMMARY_CATS.map(c=>{
     const n=E.filter(x=>x.cat===c).length, tot=totals[c]||0;
@@ -5123,8 +5158,7 @@ function renderSummary(){
   } else {
     html+='<div class="empty" style="margin-top:10px"><div class="empty-txt">该区间内暂无已完成事项</div></div>';
   }
-  html+='</div>';
-  el.innerHTML=html;
+  b.innerHTML=html;
 }
 
 function totalRecords(){
