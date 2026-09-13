@@ -871,7 +871,7 @@ body.unlocked .lock-screen{display:none}
     </div>
     <div class="lock-title">方寸 FangCun</div>
     <div class="lock-sub">科研工作台 · 请输入访问口令</div>
-    <div class="field"><label class="field-label">用户名</label><input class="input" id="lockUser" autocomplete="username" placeholder="用户名" onkeydown="if(event.key==='Enter')submitLock()"></div>
+    <div class="field"><label class="field-label">用户名</label><input class="input" id="lockUser" autocomplete="username" value="qiuxh" placeholder="用户名" onkeydown="if(event.key==='Enter')submitLock()"></div>
     <div class="field"><label class="field-label">密码</label><input class="input" type="password" id="lockPass" autocomplete="current-password" placeholder="密码" onkeydown="if(event.key==='Enter')submitLock()"></div>
     <div class="lock-err" id="lockErr"></div>
     <button class="btn btn-primary btn-block" onclick="submitLock()">进入工作台</button>
@@ -5760,8 +5760,6 @@ function clearDemo(){
 }
 function clearAll(){
   requireLockPassword('清空全部数据', function(){
-    if(!confirm('⚠️ 确定清空所有数据？此操作不可恢复！')) return;
-    if(!confirm('再次确认：将清空全部「方寸」数据！\n（已自动留一份快照，可在设置页回滚）')) return;
     autoSnapshot(JSON.stringify(DATA), true);
     const empty = JSON.parse(JSON.stringify(DEFAULT_DATA));
     DATA_KEYS.forEach(([k])=>{ empty[k] = []; });
