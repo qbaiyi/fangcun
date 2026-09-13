@@ -3147,7 +3147,7 @@ function renderFunnel(){
   const el=$('funnelChart'); if(!el) return;
   const total=DATA.papers.length, reading=DATA.papers.filter(p=>p.status==='reading').length, read=DATA.papers.filter(p=>p.status==='read').length;
   const rows=[
-    {label:'计划阅读',val:Math.max(total,1),color:'#0ea5e9'},
+    {label:'计划阅读',val:total,color:'#0ea5e9'},
     {label:'在读',val:reading,color:'#6366f1'},
     {label:'已读完',val:read,color:'#10b981'}
   ];
@@ -5740,6 +5740,8 @@ function clearAll(){
     autoSnapshot(JSON.stringify(DATA), true);
     const empty = JSON.parse(JSON.stringify(DEFAULT_DATA));
     DATA_KEYS.forEach(([k])=>{ empty[k] = []; });
+    empty.experiments = [];                  // 实验机时统计归零
+    empty.pomodoro = {count:0,log:[],focusMin:25,breakMin:5}; // 番茄钟归零
     DATA = empty; saveData(); refreshAll(); renderSettings(); toast('已清空全部数据');
   });
 }
