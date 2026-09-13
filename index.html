@@ -599,6 +599,14 @@ input[type=color]:hover{border-color:var(--primary)}
 .seq-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-right:8px;border-radius:6px;background:var(--primary);color:#fff;font-size:11px;font-weight:700;line-height:20px;vertical-align:middle}
 .sort-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .sort-btn{white-space:nowrap}
+/* 设置·总结 */
+.sum-total{display:flex;align-items:baseline;gap:8px;font-size:14px;color:var(--text-2);margin:2px 0 12px}
+.sum-num{font-size:30px;font-weight:800;color:var(--primary);line-height:1}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.sum-cell{background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.sum-cell-n{font-size:20px;font-weight:700;color:var(--text);line-height:1.1}
+.sum-cell-l{font-size:12px;color:var(--text-2);margin-top:4px}
+.sum-cell-t{font-size:11px;color:var(--text-3);margin-top:6px;opacity:.85}
 /* ============ 灵感与思考 ============ */
 .insp-card{border:1px solid var(--border);background:var(--bg-soft);border-radius:var(--radius-sm);padding:14px;margin-bottom:11px;transition:.15s}
 .insp-card:hover{border-color:var(--primary)}
@@ -1449,6 +1457,7 @@ body.unlocked .lock-screen{display:none}
         <div class="set-tabs">
           <button class="set-tab active" id="setTabGeneral" onclick="switchSettingsTab('general')">常规设置</button>
           <button class="set-tab" id="setTabDone" onclick="switchSettingsTab('done')">已完成</button>
+          <button class="set-tab" id="setTabSummary" onclick="switchSettingsTab('summary')">总结</button>
         </div>
         <div id="settingsGeneral">
         <div class="card">
@@ -1579,6 +1588,7 @@ body.unlocked .lock-screen{display:none}
         </div>
         </div><!-- /settingsGeneral -->
         <div id="settingsDone" style="display:none"></div>
+        <div id="settingsSummary" style="display:none"></div>
       </section>
 
     </main>
@@ -2655,8 +2665,10 @@ function showProjectModal(id){
 function saveProject(id){
   const o={name:$('pj_name').value.trim(),startDate:$('pj_start').value,endDate:$('pj_end').value,status:$('pj_status').value,progress:parseInt($('pj_progress').value)||0,notes:$('pj_notes').value.trim()};
   if(!o.name) return toast('请输入项目名称');
-  if(id){ const i=DATA.projects.findIndex(x=>x.id===id); DATA.projects[i]=Object.assign({},DATA.projects[i],o); }
-  else DATA.projects.push(Object.assign({id:uid(),addTs:Date.now()},o));
+  let _rec;
+  if(id){ const i=DATA.projects.findIndex(x=>x.id===id); _rec=Object.assign({},DATA.projects[i],o); DATA.projects[i]=_rec; }
+  else { _rec=Object.assign({id:uid(),addTs:Date.now()},o); DATA.projects.push(_rec); }
+  stampDone(_rec, _rec.status==='done', 'doneDate');
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delProject(id){ if(!confirm('确定删除该项目？'))return; DATA.projects=DATA.projects.filter(p=>p.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2784,6 +2796,7 @@ function kbDrop(e,status){
   if(!s||s.status===status){ kbDragId=null; return; }
   const oldStatus=s.status;
   s.status=status;
+  stampDone(s, status==='accepted', 'acceptedAt');
   saveData();
   kbDragId=null;
   // 拖到"返修"时提示设置 Revision Deadline
@@ -2837,8 +2850,10 @@ function showSubmissionModal(id,presetStatus){
 function saveSubmission(id){
   const o={title:$('sb_title').value.trim(),firstAuthor:$('sb_first').value.trim(),journal:$('sb_journal').value.trim(),status:$('sb_status').value,submittedDate:$('sb_sub').value,deadline:$('sb_due').value,notes:$('sb_notes').value.trim()};
   if(!o.title) return toast('请输入论文标题');
-  if(id){ const i=DATA.submissions.findIndex(x=>x.id===id); DATA.submissions[i]=Object.assign({},DATA.submissions[i],o); }
-  else DATA.submissions.push(Object.assign({id:uid(),addTs:Date.now()},o));
+  let _rec;
+  if(id){ const i=DATA.submissions.findIndex(x=>x.id===id); _rec=Object.assign({},DATA.submissions[i],o); DATA.submissions[i]=_rec; }
+  else { _rec=Object.assign({id:uid(),addTs:Date.now()},o); DATA.submissions.push(_rec); }
+  stampDone(_rec, _rec.status==='accepted', 'acceptedAt');
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delSubmission(id){ if(!confirm('确定删除该投稿？'))return; DATA.submissions=DATA.submissions.filter(s=>s.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2877,8 +2892,10 @@ function showPaperModal(id){
 function savePaper(id){
   const o={title:$('pp_title').value.trim(),authors:$('pp_authors').value.trim(),journal:$('pp_journal').value.trim(),year:$('pp_year').value,status:$('pp_status').value,tags:$('pp_tags').value.trim()};
   if(!o.title) return toast('请输入标题');
-  if(id){ const i=DATA.papers.findIndex(x=>x.id===id); DATA.papers[i]=Object.assign({},DATA.papers[i],o); }
-  else DATA.papers.push(Object.assign({id:uid(),addTs:Date.now()},o));
+  let _rec;
+  if(id){ const i=DATA.papers.findIndex(x=>x.id===id); _rec=Object.assign({},DATA.papers[i],o); DATA.papers[i]=_rec; }
+  else { _rec=Object.assign({id:uid(),addTs:Date.now()},o); DATA.papers.push(_rec); }
+  stampDone(_rec, _rec.status==='read', 'readAt');
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delPaper(id){ if(!confirm('确定删除该文献？'))return; DATA.papers=DATA.papers.filter(p=>p.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -4963,13 +4980,16 @@ function renderSettings(){
   const fsSeg=$('fontSizeSeg'); if(fsSeg) fsSeg.innerHTML = fontSizeSegHTML();
   const fh=$('fontHint'); if(fh) fh.textContent = fontHintText();
   renderAiSettingsUI();
-  var _g=document.getElementById('settingsGeneral'), _d=document.getElementById('settingsDone');
+  var _g=document.getElementById('settingsGeneral'), _d=document.getElementById('settingsDone'), _s=document.getElementById('settingsSummary');
   if(_g) _g.style.display = settingsTab==='general'?'':'none';
   if(_d) _d.style.display = settingsTab==='done'?'':'none';
-  var _tg=document.getElementById('setTabGeneral'), _td=document.getElementById('setTabDone');
+  if(_s) _s.style.display = settingsTab==='summary'?'':'none';
+  var _tg=document.getElementById('setTabGeneral'), _td=document.getElementById('setTabDone'), _ts=document.getElementById('setTabSummary');
   if(_tg) _tg.classList.toggle('active', settingsTab==='general');
   if(_td) _td.classList.toggle('active', settingsTab==='done');
+  if(_ts) _ts.classList.toggle('active', settingsTab==='summary');
   renderArchives();
+  renderSummary();
 }
 
 /* 设置页「已完成」标签：归档材料浏览 / 恢复 / 彻底删除 */
@@ -4978,13 +4998,16 @@ const ARCH_TYPES={task:'待办',project:'项目',paper:'文献',submission:'投�
 function archArr(type){ return {task:DATA.tasks,project:DATA.projects,paper:DATA.papers,submission:DATA.submissions}[type]; }
 function switchSettingsTab(t){
   settingsTab=t;
-  var g=document.getElementById('settingsGeneral'), d=document.getElementById('settingsDone');
+  var g=document.getElementById('settingsGeneral'), d=document.getElementById('settingsDone'), s=document.getElementById('settingsSummary');
   if(g) g.style.display = t==='general'?'':'none';
   if(d) d.style.display = t==='done'?'':'none';
-  var tg=document.getElementById('setTabGeneral'), td=document.getElementById('setTabDone');
+  if(s) s.style.display = t==='summary'?'':'none';
+  var tg=document.getElementById('setTabGeneral'), td=document.getElementById('setTabDone'), ts=document.getElementById('setTabSummary');
   if(tg) tg.classList.toggle('active', t==='general');
   if(td) td.classList.toggle('active', t==='done');
+  if(ts) ts.classList.toggle('active', t==='summary');
   if(t==='done') renderArchives();
+  if(t==='summary') renderSummary();
 }
 function archiveRecord(type,id){
   var arr=archArr(type); if(!arr) return;
@@ -5032,6 +5055,76 @@ function renderArchives(){
   el.innerHTML = blocks.length
     ? blocks.join('')
     : '<div class="empty"><div class="empty-txt">暂无归档材料</div><div class="text-xs text-muted" style="margin-top:6px">在待办、项目、文献、投稿中点「归档」后，完成的条目会出现在这里。</div></div>';
+}
+
+/* ===== 设置·总结：按周/月/年统计“已完成”事项。
+   只认“完成状态”（待办已完成 / 项目已完成 / 文献已读 / 投稿接收 / 灵感已回答 / 工作汇报）；
+   仅“归档”而未标记完成的，不计入。 */
+let summaryPeriod='month';
+const SUMMARY_PERIODS=[['week','本周'],['month','本月'],['year','本年']];
+const SUMMARY_CATS=['待办完成','项目完成','文献读完','论文接收','灵感已回答','工作汇报'];
+function setSummaryPeriod(p){ summaryPeriod=p; renderSummary(); }
+/* 标记完成时打时间戳，取消完成时清除（供统计按周期归档） */
+function stampDone(rec, isDone, field){
+  if(!rec) return;
+  if(isDone){ if(!rec[field]) rec[field]=todayStr(); }
+  else { delete rec[field]; }
+}
+function periodRange(p){
+  const base=new Date(todayStr()+'T00:00:00');
+  let s,e;
+  if(p==='week'){ const dow=(base.getDay()+6)%7; s=new Date(base); s.setDate(base.getDate()-dow); e=new Date(s); e.setDate(s.getDate()+6); }
+  else if(p==='year'){ s=new Date(base.getFullYear(),0,1); e=new Date(base.getFullYear(),11,31); }
+  else { s=new Date(base.getFullYear(),base.getMonth(),1); e=new Date(base.getFullYear(),base.getMonth()+1,0); }
+  return {start:fmtDate(s), end:fmtDate(e)};
+}
+function inSummaryRange(ds,r){ if(!ds) return false; const d=String(ds).slice(0,10); return d>=r.start && d<=r.end; }
+function summaryEntries(){
+  const r=periodRange(summaryPeriod), E=[];
+  const push=(cat,name,ds)=>{ if(inSummaryRange(ds,r)) E.push({cat:cat,name:name||'(未命名)',date:String(ds).slice(0,10)}); };
+  (DATA.tasks||[]).forEach(t=>{ if(t.done) push('待办完成', t.title, t.doneDate||t.deadline); });
+  (DATA.projects||[]).forEach(p=>{ if(p.status==='done') push('项目完成', p.name, p.doneDate||p.endDate); });
+  (DATA.papers||[]).forEach(p=>{ if(p.status==='read') push('文献读完', p.title, p.readAt); });
+  (DATA.submissions||[]).forEach(s=>{ if(s.status==='accepted') push('论文接收', s.title, s.acceptedAt); });
+  (DATA.inspirations||[]).forEach(i=>{ if((i.status||'')==='answered') push('灵感已回答', i.title, i.updatedAt||i.createdAt); });
+  (DATA.reports||[]).forEach(x=>{ push('工作汇报', x.title, x.date); });
+  return E;
+}
+function summaryTotals(){
+  return {
+    '待办完成':(DATA.tasks||[]).filter(t=>t.done).length,
+    '项目完成':(DATA.projects||[]).filter(p=>p.status==='done').length,
+    '文献读完':(DATA.papers||[]).filter(p=>p.status==='read').length,
+    '论文接收':(DATA.submissions||[]).filter(s=>s.status==='accepted').length,
+    '灵感已回答':(DATA.inspirations||[]).filter(i=>(i.status||'')==='answered').length,
+    '工作汇报':(DATA.reports||[]).length
+  };
+}
+function renderSummary(){
+  const el=document.getElementById('settingsSummary'); if(!el) return;
+  const r=periodRange(summaryPeriod);
+  const E=summaryEntries();
+  const totals=summaryTotals();
+  const seg='<div class="seg">'+SUMMARY_PERIODS.map(([p,n])=>'<button class="seg-btn'+(summaryPeriod===p?' active':'')+'" onclick="setSummaryPeriod(\''+p+'\')">'+n+'</button>').join('')+'</div>';
+  let html='<div class="card"><div class="card-head"><div class="card-title">完成总结</div>'+seg+'</div>';
+  html+='<div class="text-xs text-muted" style="margin-bottom:10px">统计区间：'+r.start+' ~ '+r.end+'　·　仅统计“已完成/已接收/已读/已回答”，归档不计入</div>';
+  html+='<div class="sum-total"><span class="sum-num">'+E.length+'</span> 项完成</div>';
+  html+='<div class="sum-grid">'+SUMMARY_CATS.map(c=>{
+    const n=E.filter(x=>x.cat===c).length, tot=totals[c]||0;
+    return '<div class="sum-cell"><div class="sum-cell-n">'+n+'</div><div class="sum-cell-l">'+c+'</div><div class="sum-cell-t">累计 '+tot+'</div></div>';
+  }).join('')+'</div>';
+  if(E.length){
+    html+='<div style="margin-top:12px">'+SUMMARY_CATS.filter(c=>E.some(x=>x.cat===c)).map(c=>{
+      const items=E.filter(x=>x.cat===c).sort((a,b)=>b.date.localeCompare(a.date));
+      return '<div class="arch-group"><div class="arch-group-head">'+c+'<span class="ag-count">'+items.length+'</span></div>'+
+        items.map(x=>'<div class="list-item" style="margin-bottom:6px"><div class="li-body"><div class="li-title">'+esc(x.name)+'</div><div class="li-meta"><span class="badge badge-gray">'+x.date+'</span></div></div></div>').join('')+
+        '</div>';
+    }).join('')+'</div>';
+  } else {
+    html+='<div class="empty" style="margin-top:10px"><div class="empty-txt">该区间内暂无已完成事项</div></div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
 }
 
 function totalRecords(){
