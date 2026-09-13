@@ -3591,10 +3591,8 @@ function uploadPhotos(e){
   files.forEach(f=>{
     const r=new FileReader();
     r.onload=ev=>{ const img=new Image(); img.onload=()=>{
-      const c=document.createElement('canvas'); const maxW=1400; const sc=Math.min(1,maxW/img.width);
-      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
-      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      DATA.photos=DATA.photos||[]; DATA.photos.push(c.toDataURL('image/jpeg',.82)); n++;
+      DATA.photos=DATA.photos||[];
+      DATA.photos.push(compressImageDataURL(img, {maxW:1400, q:0.82, maxBytes:1200000})); n++;
       if(n===total){ saveData(); renderFrame(); toast('已添加 '+n+' 张，相框共 '+DATA.photos.length+' 张'); }
     }; img.src=ev.target.result; };
     r.readAsDataURL(f);
@@ -5258,13 +5256,34 @@ function applyBackground(id){
   document.body.classList.toggle('has-bgimg', id==='custom' && !!DATA.settings.customBg);
   saveData(); renderSettings();
 }
+/* 图片压缩工具：限制最长边与质量，超体积自动降级，确保能存进浏览器并随云端同步 */
+function compressImageDataURL(img, opts){
+  opts = opts || {};
+  const maxW = opts.maxW || 1920;
+  const maxBytes = opts.maxBytes || 1600000;
+  const plan = [
+    {w:maxW, q:opts.q||0.82},
+    {w:maxW, q:0.6},
+    {w:Math.min(maxW,1280), q:0.7},
+    {w:Math.min(maxW,1024), q:0.58}
+  ];
+  let out=null;
+  for(const s of plan){
+    const sc=Math.min(1, s.w/img.width);
+    const c=document.createElement('canvas');
+    c.width=Math.max(1,Math.round(img.width*sc)); c.height=Math.max(1,Math.round(img.height*sc));
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    out=c.toDataURL('image/jpeg', s.q);
+    if(out.length <= maxBytes) break;
+  }
+  return out;
+}
 function uploadCustomBg(e){
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{ const img=new Image(); img.onload=()=>{
-    const c=document.createElement('canvas'); const maxW=1920; const sc=Math.min(1,maxW/img.width);
-    c.width=img.width*sc; c.height=img.height*sc; c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    DATA.settings.customBg=c.toDataURL('image/jpeg',.8); DATA.settings.background='custom'; saveData();
+    DATA.settings.customBg=compressImageDataURL(img,{maxW:1920,q:0.82,maxBytes:1600000});
+    DATA.settings.background='custom'; saveData();
     applyBackground('custom'); toast('背景已设置');
   }; img.src=ev.target.result; };
   r.readAsDataURL(f); e.target.value='';
@@ -5437,10 +5456,7 @@ function uploadCalBg(e){
   r.onload = ev=>{
     const img = new Image();
     img.onload = ()=>{
-      const c = document.createElement('canvas'), maxW = 1400, sc = Math.min(1, maxW/img.width);
-      c.width = Math.round(img.width*sc); c.height = Math.round(img.height*sc);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      DATA.settings.dashCalBgImg = c.toDataURL('image/jpeg', .82);
+      DATA.settings.dashCalBgImg = compressImageDataURL(img, {maxW:1400, q:0.82, maxBytes:1200000});
       DATA.settings.dashCalBg = 'custom'; saveData();
       renderDashCal(); showCalBgModal(); toast('日历背景已设置');
     };
