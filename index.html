@@ -5058,8 +5058,8 @@ function renderArchives(){
 }
 
 /* ===== 设置·总结：按周/月/年统计“已完成”事项。
-   只认“完成状态”（待办已完成 / 项目已完成 / 文献已读 / 投稿接收 / 灵感已回答 / 工作汇报）；
-   仅“归档”而未标记完成的，不计入。 */
+   只认“完成状态”（待办已完成 / 项目已完成 / 文献已读 / 投稿接收 / 灵感已回答 / 工作汇报）。
+   规则：先标记完成、之后归档的，仍计入；未标记完成、只是归档的，不计入。 */
 let summaryPeriod='month';
 const SUMMARY_PERIODS=[['week','本周'],['month','本月'],['year','本年']];
 const SUMMARY_CATS=['待办完成','项目完成','文献读完','论文接收','灵感已回答','工作汇报'];
@@ -5107,7 +5107,7 @@ function renderSummary(){
   const totals=summaryTotals();
   const seg='<div class="seg">'+SUMMARY_PERIODS.map(([p,n])=>'<button class="seg-btn'+(summaryPeriod===p?' active':'')+'" onclick="setSummaryPeriod(\''+p+'\')">'+n+'</button>').join('')+'</div>';
   let html='<div class="card"><div class="card-head"><div class="card-title">完成总结</div>'+seg+'</div>';
-  html+='<div class="text-xs text-muted" style="margin-bottom:10px">统计区间：'+r.start+' ~ '+r.end+'　·　仅统计“已完成/已接收/已读/已回答”，归档不计入</div>';
+  html+='<div class="text-xs text-muted" style="margin-bottom:10px">统计区间：'+r.start+' ~ '+r.end+'　·　统计“已完成/已接收/已读/已回答”；完成后归档的仍计入，未完成仅归档的不计入</div>';
   html+='<div class="sum-total"><span class="sum-num">'+E.length+'</span> 项完成</div>';
   html+='<div class="sum-grid">'+SUMMARY_CATS.map(c=>{
     const n=E.filter(x=>x.cat===c).length, tot=totals[c]||0;
