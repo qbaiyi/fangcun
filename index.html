@@ -595,6 +595,10 @@ input[type=color]:hover{border-color:var(--primary)}
 #achvSeg,#inspSeg{flex-wrap:wrap;max-width:100%}
 @media(max-width:768px){#achvSeg,#inspSeg{display:flex;width:100%}#achvSeg .seg-btn,#inspSeg .seg-btn{flex:1;text-align:center;padding:6px 8px}}
 
+/* ===== 排序与序号样式 ===== */
+.seq-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-right:8px;border-radius:6px;background:var(--primary);color:#fff;font-size:11px;font-weight:700;line-height:20px;vertical-align:middle}
+.sort-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.sort-btn{white-space:nowrap}
 /* ============ 灵感与思考 ============ */
 .insp-card{border:1px solid var(--border);background:var(--bg-soft);border-radius:var(--radius-sm);padding:14px;margin-bottom:11px;transition:.15s}
 .insp-card:hover{border-color:var(--primary)}
@@ -915,7 +919,7 @@ body.unlocked .lock-screen{display:none}
       <div class="sb-group">科研</div>
       <div class="sb-item" data-page="papers">
         <svg class="sb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        <span class="sb-item-label">文献库</span>
+        <span class="sb-item-label">论文阅读与投稿</span>
       </div>
       <div class="sb-item" data-page="achievements">
         <svg class="sb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5.5a5 5 0 0 1-10 0z"/><path d="M7 5.5H4.6A1.6 1.6 0 0 0 3 7.1 3.6 3.6 0 0 0 6.6 10.7H7"/><path d="M17 5.5h2.4A1.6 1.6 0 0 1 21 7.1a3.6 3.6 0 0 1-3.6 3.6H17"/><path d="M12 14.5V18"/><path d="M8.5 21h7"/><path d="M10 18h4l1 3H9z"/></svg>
@@ -1235,7 +1239,7 @@ body.unlocked .lock-screen{display:none}
       <!-- ===== 文献库 ===== -->
       <section class="page" id="page-papers">
         <div class="page-head">
-          <div><div class="page-title">文献库</div><div class="page-desc">文献阅读 + 论文投稿追踪</div></div>
+          <div><div class="page-title">论文阅读与投稿</div><div class="page-desc">文献精读 · 论文投稿状态 · 自动计算「距离今天多少天」</div></div>
           <button class="btn btn-primary btn-sm" onclick="showPaperModal()">新增文献</button>
         </div>
         <div class="card">
@@ -2360,6 +2364,32 @@ function openSyncPanel(){
 
 function uid(){ return Date.now()+Math.floor(Math.random()*1000); }
 
+/* ===== 排序与序号 ===== */
+let sortDir = {};  /* 各模块排序方向：'asc' 先加入 / 'desc' 后加入 */
+function toggleSort(key){ const cur = sortDir[key] || 'asc'; sortDir[key] = (cur==='asc') ? 'desc' : 'asc'; refreshAll(); }
+function sortItems(arr, key){
+  const dir = sortDir[key] || 'asc';
+  const a = arr.slice();
+  a.sort(function(x,y){ const tx=Number(x.addTs||0), ty=Number(y.addTs||0); return dir==='asc' ? tx-ty : ty-tx; });
+  return a;
+}
+function sortBtnHtml(key){
+  const dir = sortDir[key] || 'asc';
+  const icon = dir==='asc' ? '↑' : '↓';
+  const label = dir==='asc' ? '先加入' : '后加入';
+  return '<button class="btn btn-ghost btn-sm sort-btn" onclick="toggleSort(\''+key+'\')" title="按加入时间排序">⇅ 排序 '+icon+' '+label+'</button>';
+}
+function seqBadge(n){ return '<span class="seq-badge">'+n+'</span>'; }
+/* 为历史/示例数据补 addTs，保证按“加入时间”排序时有稳定顺序（数组顺序即加入顺序） */
+function ensureSortKeys(){
+  const base = 1700000000000;
+  ['projects','goals','funds','submissions','papers','students','inspirations','tasks'].forEach(function(k){
+    const arr = DATA[k];
+    if(!Array.isArray(arr)) return;
+    arr.forEach(function(it, idx){ if(it && !it.addTs) it.addTs = base + idx; });
+  });
+}
+
 /* ================================================================
    工具
 ================================================================ */
@@ -2370,6 +2400,8 @@ function fmtDate(d){ if(!d) return ''; const dt=new Date(d); if(isNaN(dt)) retur
 function todayStr(){ const d=new Date(); return fmtDate(d); }
 function isOverdue(d){ if(!d) return false; return new Date(d)<new Date(todayStr()); }
 function diffDays(d){ if(!d) return Infinity; return Math.ceil((new Date(d)-new Date(todayStr()))/86400000); }
+/* 距今天数：某日期到今天已过去多少天（用于“已投递 X 天”），不早于 0 */
+function daysSince(d){ if(!d) return null; return Math.max(0, -diffDays(d)); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),2200); }
 /* 弹窗：内容若未自带面板容器，自动套一层 .modal，保证有实底背景（否则文字会压在暗色蒙层上发虚）
    注意：只能用 (?:modal)(?=["'\s]) 精确匹配，不能用 \b —— 否则 "modal-head" 会被误判为已自带面板 */
@@ -2595,10 +2627,11 @@ function renderProjects(){
   const el=$('projectsList');
   const plist=DATA.projects.filter(p=>!p.archived);
   if(!plist.length){ el.innerHTML='<div class="empty"><div class="empty-txt">暂无项目</div></div>'; return; }
-  el.innerHTML=plist.map(p=>{
+  const list=sortItems(plist,'projects');
+  el.innerHTML='<div class="sort-bar">'+sortBtnHtml('projects')+'</div>'+list.map((p,i)=>{
     const od=isOverdue(p.endDate);
     return '<div class="list-item '+(od?'overdue':'')+'" style="margin-bottom:8px">'+
-      '<div class="li-body"><div class="flex justify-between items-center"><div class="li-title">'+esc(p.name)+'</div>'+
+      '<div class="li-body"><div class="flex justify-between items-center"><div class="li-title">'+seqBadge(i+1)+esc(p.name)+'</div>'+
       '<span class="badge '+(p.status==='active'?'badge-success':'badge-gray')+'">'+(p.status==='active'?'进行中':'已完成')+'</span></div>'+
       '<div class="progress progress-lg mt-1"><div class="progress-bar" style="width:'+p.progress+'%"></div></div>'+
       '<div class="li-meta mt-1"><span>进度 '+p.progress+'%</span><span>·</span><span class="'+(od?'badge badge-danger':'')+'">'+(od?'已逾期 ':'截止 ')+p.endDate+'</span>'+
@@ -2623,7 +2656,7 @@ function saveProject(id){
   const o={name:$('pj_name').value.trim(),startDate:$('pj_start').value,endDate:$('pj_end').value,status:$('pj_status').value,progress:parseInt($('pj_progress').value)||0,notes:$('pj_notes').value.trim()};
   if(!o.name) return toast('请输入项目名称');
   if(id){ const i=DATA.projects.findIndex(x=>x.id===id); DATA.projects[i]=Object.assign({},DATA.projects[i],o); }
-  else DATA.projects.push(Object.assign({id:uid()},o));
+  else DATA.projects.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delProject(id){ if(!confirm('确定删除该项目？'))return; DATA.projects=DATA.projects.filter(p=>p.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2634,10 +2667,11 @@ function delProject(id){ if(!confirm('确定删除该项目？'))return; DATA.pr
 function renderGoals(){
   const el=$('goalsList');
   if(!DATA.goals.length){ el.innerHTML='<div class="empty"><div class="empty-txt">暂无目标</div></div>'; return; }
-  el.innerHTML=DATA.goals.map(g=>{
+  const list=sortItems(DATA.goals,'goals');
+  el.innerHTML='<div class="sort-bar">'+sortBtnHtml('goals')+'</div>'+list.map((g,i)=>{
     const d=diffDays(g.deadline), od=isOverdue(g.deadline);
     return '<div class="card" style="margin-bottom:10px;background:var(--bg-soft)">'+
-      '<div class="flex justify-between items-center mb-2"><div class="li-title" style="font-size:14px">'+esc(g.title)+'</div>'+
+      '<div class="flex justify-between items-center mb-2"><div class="li-title" style="font-size:14px">'+seqBadge(i+1)+esc(g.title)+'</div>'+
       '<div class="li-actions"><button class="btn btn-sm btn-ghost" onclick="showGoalModal('+g.id+')">编辑</button><button class="btn btn-sm btn-ghost" onclick="delGoal('+g.id+')">删除</button></div></div>'+
       '<div class="li-meta mb-2"><span class="badge '+(od?'badge-danger':d<=7?'badge-warn':'badge-primary')+'">'+(od?'已逾期 '+Math.abs(d)+' 天':d===0?'今天截止':'距截止 '+d+' 天')+'</span><span>'+g.deadline+'</span></div>'+
       '<div class="progress progress-lg"><div class="progress-bar" style="width:'+g.progress+'%"></div></div>'+
@@ -2658,7 +2692,7 @@ function saveGoal(id){
   const o={title:$('gl_title').value.trim(),deadline:$('gl_due').value,progress:parseInt($('gl_progress').value)||0,notes:$('gl_notes').value.trim()};
   if(!o.title) return toast('请输入目标名称');
   if(id){ const i=DATA.goals.findIndex(x=>x.id===id); DATA.goals[i]=Object.assign({},DATA.goals[i],o); }
-  else DATA.goals.push(Object.assign({id:uid()},o));
+  else DATA.goals.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delGoal(id){ if(!confirm('确定删除该目标？'))return; DATA.goals=DATA.goals.filter(g=>g.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2670,10 +2704,11 @@ const FUND_STATUS={preparing:'准备中',submitted:'已提交',approved:'已立�
 function renderFunds(){
   const el=$('fundsList');
   if(!DATA.funds.length){ el.innerHTML='<div class="empty"><div class="empty-txt">暂无基金申请</div></div>'; return; }
-  el.innerHTML=DATA.funds.map(f=>{
+  const list=sortItems(DATA.funds,'funds');
+  el.innerHTML='<div class="sort-bar">'+sortBtnHtml('funds')+'</div>'+list.map((f,i)=>{
     const d=diffDays(f.deadline), od=isOverdue(f.deadline);
     return '<div class="list-item '+(od?'overdue':'')+'" style="margin-bottom:8px">'+
-      '<div class="li-body"><div class="flex justify-between items-center"><div class="li-title">'+esc(f.title)+'</div>'+
+      '<div class="li-body"><div class="flex justify-between items-center"><div class="li-title">'+seqBadge(i+1)+esc(f.title)+'</div>'+
       '<span class="badge badge-accent">'+FUND_STATUS[f.status]+'</span></div>'+
       '<div class="li-meta"><span>'+esc(f.agency)+'</span><span>·</span><span>¥'+f.amount+'万</span><span>·</span>'+
       '<span class="'+(od?'badge badge-danger':'')+'">'+(od?'已逾期 ':'截止 ')+f.deadline+'</span><span>·</span><span>'+(od?'':d+'天')+'</span></div>'+
@@ -2699,7 +2734,7 @@ function saveFund(id){
   const o={title:$('fd_title').value.trim(),agency:$('fd_agency').value.trim(),amount:parseFloat($('fd_amount').value)||0,deadline:$('fd_due').value,status:$('fd_status').value,progress:parseInt($('fd_progress').value)||0,notes:$('fd_notes').value.trim()};
   if(!o.title) return toast('请输入项目名称');
   if(id){ const i=DATA.funds.findIndex(x=>x.id===id); DATA.funds[i]=Object.assign({},DATA.funds[i],o); }
-  else DATA.funds.push(Object.assign({id:uid()},o));
+  else DATA.funds.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delFund(id){ if(!confirm('确定删除该基金？'))return; DATA.funds=DATA.funds.filter(f=>f.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2724,11 +2759,12 @@ function renderKanban(){
       '<span class="kb-count">'+list.length+'</span></div>'+
       '<div class="kb-cards">'+
         list.map(s=>{
-          const od=s.deadline&&isOverdue(s.deadline), d=s.deadline?diffDays(s.deadline):null;
+          const od=s.deadline&&isOverdue(s.deadline), d=s.deadline?diffDays(s.deadline):null, since=daysSince(s.submittedDate);
           return '<div class="kb-card" draggable="true" ondragstart="kbDragStart(event,'+s.id+')" ondragend="kbDragEnd(event)" onclick="showSubmissionModal('+s.id+')">'+
             '<div class="kb-card-title">'+esc(s.title)+'</div>'+
             '<div class="kb-card-meta"><span>一作：'+esc(s.firstAuthor||'—')+'</span>'+
             '<span class="kb-journal">'+esc(s.journal||'')+'</span></div>'+
+            (since!=null?'<div style="font-size:11.5px;color:var(--text-3);margin-top:4px">已投递 '+since+' 天</div>':'')+
             (s.deadline?'<div class="kb-deadline '+(od?'urgent':'')+'">'+(od?'逾期 ':'')+s.deadline+(d!==null&&!od?' · '+d+'天':'')+'</div>':'')+
             '</div>';
         }).join('')+
@@ -2769,16 +2805,18 @@ function renderSubmissions(){
   const el=$('submissionsList');
   const slist=DATA.submissions.filter(s=>!s.archived);
   if(!slist.length){ el.innerHTML='<div class="empty"><div class="empty-txt">暂无投稿记录</div></div>'; return; }
-  const list=slist.sort((a,b)=>SUB_ORDER.indexOf(a.status)-SUB_ORDER.indexOf(b.status));
-  el.innerHTML=list.map(s=>{
+  const list=sortItems(slist,'submissions');
+  el.innerHTML='<div class="sort-bar">'+sortBtnHtml('submissions')+'</div>'+list.map((s,i)=>{
     const od=isOverdue(s.deadline);
+    const since=daysSince(s.submittedDate);
+    const left=(s.deadline?diffDays(s.deadline):null);
     return '<div class="list-item '+(od?'overdue':'')+'" style="margin-bottom:8px">'+
-      '<div class="li-body"><div class="flex justify-between items-center"><div class="li-title">'+esc(s.title)+'</div>'+
+      '<div class="li-body"><div class="flex justify-between items-center"><div class="li-title">'+seqBadge(i+1)+esc(s.title)+'</div>'+
       '<span class="badge" style="background:'+SUB_STATUS[s.status].color+'22;color:'+SUB_STATUS[s.status].color+'">'+SUB_STATUS[s.status].label+'</span></div>'+
       '<div class="li-meta"><span>一作：'+esc(s.firstAuthor||'—')+'</span><span>·</span><span class="kb-journal">'+esc(s.journal||'')+'</span>'+
-      (s.submittedDate?'<span>·</span><span>投递 '+s.submittedDate+'</span>':'')+
-      (s.deadline?'<span>·</span><span class="'+(od?'badge badge-danger':'')+'">'+(od?'逾期 ':'截止 ')+s.deadline+'</span>':'')+'</div></div>'+
-      '<div class="li-actions"><button class="btn btn-sm btn-ghost" onclick="showSubmissionModal('+s.id+')">编辑</button>'+
+      (s.submittedDate?'<span>·</span><span title="距投稿日">投递 '+s.submittedDate+(since!=null?'（已 '+since+' 天）':'')+'</span>':'')+
+      (s.deadline?'<span>·</span><span class="'+(od?'badge badge-danger':'')+'" title="距截止日">'+(od?'逾期 '+Math.abs(left)+' 天':'距截止 '+left+' 天')+' · '+s.deadline+'</span>':'')+'</div></div>'+
+      '<div class="li-actions"><button class="btn btn-sm btn-ghost" onclick="showSubmissionModal('+s.id+')">编辑 / 改状态</button>'+
       '<button class="btn btn-sm btn-ghost" onclick="archiveRecord(\'submission\','+s.id+')">归档</button>'+
       '<button class="btn btn-sm btn-ghost" onclick="delSubmission('+s.id+')">删除</button></div></div>';
   }).join('');
@@ -2800,7 +2838,7 @@ function saveSubmission(id){
   const o={title:$('sb_title').value.trim(),firstAuthor:$('sb_first').value.trim(),journal:$('sb_journal').value.trim(),status:$('sb_status').value,submittedDate:$('sb_sub').value,deadline:$('sb_due').value,notes:$('sb_notes').value.trim()};
   if(!o.title) return toast('请输入论文标题');
   if(id){ const i=DATA.submissions.findIndex(x=>x.id===id); DATA.submissions[i]=Object.assign({},DATA.submissions[i],o); }
-  else DATA.submissions.push(Object.assign({id:uid()},o));
+  else DATA.submissions.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delSubmission(id){ if(!confirm('确定删除该投稿？'))return; DATA.submissions=DATA.submissions.filter(s=>s.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2811,12 +2849,13 @@ function delSubmission(id){ if(!confirm('确定删除该投稿？'))return; DATA
 const PAPER_STATUS={unread:'未读',reading:'在读',read:'已读'};
 function renderPapers(){
   const f=DATA.paperFilter||'all';
-  let list=DATA.papers.filter(p=>!p.archived);
-  if(f!=='all') list=list.filter(p=>p.status===f);
+  let base=DATA.papers.filter(p=>!p.archived);
+  if(f!=='all') base=base.filter(p=>p.status===f);
   const el=$('papersList');
-  if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-txt">暂无文献</div></div>'; return; }
-  el.innerHTML=list.map(p=>'<div class="list-item" style="margin-bottom:6px">'+
-    '<div class="li-body"><div class="li-title">'+esc(p.title)+'</div>'+
+  if(!base.length){ el.innerHTML='<div class="empty"><div class="empty-txt">暂无文献</div></div>'; return; }
+  const list=sortItems(base,'papers');
+  el.innerHTML='<div class="sort-bar">'+sortBtnHtml('papers')+'</div>'+list.map((p,i)=>'<div class="list-item" style="margin-bottom:6px">'+
+    '<div class="li-body"><div class="li-title">'+seqBadge(i+1)+esc(p.title)+'</div>'+
     '<div class="li-meta"><span>'+esc(p.authors||'')+'</span><span>·</span><span class="kb-journal">'+esc(p.journal||'')+'</span><span>'+(p.year||'')+'</span>'+
     '<span class="badge badge-primary">'+(PAPER_STATUS[p.status]||'未读')+'</span>'+
     (p.tags?'<span>'+esc(p.tags)+'</span>':'')+'</div></div>'+
@@ -2839,7 +2878,7 @@ function savePaper(id){
   const o={title:$('pp_title').value.trim(),authors:$('pp_authors').value.trim(),journal:$('pp_journal').value.trim(),year:$('pp_year').value,status:$('pp_status').value,tags:$('pp_tags').value.trim()};
   if(!o.title) return toast('请输入标题');
   if(id){ const i=DATA.papers.findIndex(x=>x.id===id); DATA.papers[i]=Object.assign({},DATA.papers[i],o); }
-  else DATA.papers.push(Object.assign({id:uid()},o));
+  else DATA.papers.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delPaper(id){ if(!confirm('确定删除该文献？'))return; DATA.papers=DATA.papers.filter(p=>p.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -2876,14 +2915,15 @@ function renderStudents(){
   if(cnt) cnt.textContent='研究生 '+all.filter(s=>s.level!=='undergrad').length+' 人 · 本科生 '+all.filter(s=>s.level==='undergrad').length+' 人';
   /* 3) 名片列表 */
   const el=$('studentsList'); if(!el) return;
-  const list=all.filter(s=>stuFilter==='all' ? true : (s.level==='undergrad')===(stuFilter==='undergrad'));
-  if(!list.length){
+  const base=all.filter(s=>stuFilter==='all' ? true : (s.level==='undergrad')===(stuFilter==='undergrad'));
+  if(!base.length){
     el.innerHTML='<div class="empty"><div class="empty-txt">'+(all.length? '该分组下暂无学生':'暂无学生，点击右上角「新增学生」开始')+'</div></div>';
     return;
   }
+  const list=sortItems(base,'students');
   const STAGES=[['prep','预实验'],['char','样品表征'],['analysis','数据分析'],['draft','初稿撰写']];
   const FOLDER_ICO='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
-  el.innerHTML=list.map(s=>{
+  el.innerHTML='<div class="sort-bar">'+sortBtnHtml('students')+'</div>'+list.map((s,i)=>{
     const av=s.avatar?'<img src="'+s.avatar+'">':esc((s.name||'?').charAt(0));
     const lv=s.level==='undergrad'?'undergrad':'grad';
     const folder=s.folder
@@ -2891,7 +2931,7 @@ function renderStudents(){
       : '<div class="stu-folder none" onclick="event.stopPropagation();showStudentModal('+s.id+')">'+FOLDER_ICO+'<span class="sf-path" style="direction:ltr">未设置个人文件夹，点此添加</span></div>';
     return '<div class="stu-card" onclick="showStudentModal('+s.id+')">'+
       '<div class="stu-top"><div class="stu-avatar">'+av+'</div>'+
-      '<div style="flex:1;min-width:0"><div class="stu-name">'+esc(s.name)+'<span class="stu-level lv-'+lv+'">'+stuLevelName(lv)+'</span><span class="badge badge-gray">'+(s.gender==='F'?'女':'男')+'</span>'+(s.grade?'<span class="badge badge-primary">'+esc(s.grade)+'</span>':'')+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="stu-name">'+seqBadge(i+1)+esc(s.name)+'<span class="stu-level lv-'+lv+'">'+stuLevelName(lv)+'</span><span class="badge badge-gray">'+(s.gender==='F'?'女':'男')+'</span>'+(s.grade?'<span class="badge badge-primary">'+esc(s.grade)+'</span>':'')+'</div>'+
       '<div class="stu-topic">'+esc(s.topic||'未设课题')+'</div></div></div>'+
       '<div class="stu-contact"><span class="stu-chip">'+esc(s.phone||'—')+'</span><span class="stu-chip">微信 '+esc(s.wechat||'—')+'</span><span class="stu-chip">QQ '+esc(s.qq||'—')+'</span></div>'+
       '<div class="progress progress-lg"><div class="progress-bar" style="width:'+(s.progress||0)+'%"></div></div>'+
@@ -3000,7 +3040,7 @@ function saveStudent(id){
     skills:{exp:num('exp'),paper:num('paper'),report:num('report'),lit:num('lit'),collab:num('collab')}};
   if(!o.name) return toast('请输入姓名');
   if(id){ const i=DATA.students.findIndex(x=>x.id===id); DATA.students[i]=Object.assign({},DATA.students[i],o); }
-  else DATA.students.push(Object.assign({id:uid()},o));
+  else DATA.students.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delStudent(id){ if(!confirm('确定删除该学生？'))return; DATA.students=DATA.students.filter(s=>s.id!==id); saveData(); closeModal(); refreshAll(); toast('已删除'); }
@@ -3037,7 +3077,7 @@ function saveCourse(id){
   const o={name:$('cs_name').value.trim(),dayOfWeek:parseInt($('cs_dow').value),time:$('cs_time').value.trim(),location:$('cs_loc').value.trim(),teacher:$('cs_teacher').value.trim(),startDate:$('cs_start').value,endDate:$('cs_end').value,pptLink:$('cs_ppt').value.trim(),color:$('cs_color').value};
   if(!o.name) return toast('请输入课程名称');
   if(id){ const i=DATA.courses.findIndex(x=>x.id===id); DATA.courses[i]=Object.assign({},DATA.courses[i],o); }
-  else DATA.courses.push(Object.assign({id:uid()},o));
+  else DATA.courses.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function importCourses(e){
@@ -3099,7 +3139,7 @@ function saveEvent(id){
   const o={title:$('ev_title').value.trim(),date:$('ev_date').value,time:$('ev_time').value.trim(),location:$('ev_loc').value.trim(),type:$('ev_type').value,notes:$('ev_notes').value.trim()};
   if(!o.title) return toast('请输入标题');
   if(id){ const i=DATA.events.findIndex(x=>x.id===id); DATA.events[i]=Object.assign({},DATA.events[i],o); }
-  else DATA.events.push(Object.assign({id:uid()},o));
+  else DATA.events.push(Object.assign({id:uid(),addTs:Date.now()},o));
   saveData(); closeModal(); refreshAll(); toast('已保存');
 }
 function delEvent(id){ if(!confirm('确定删除该日程？'))return; DATA.events=DATA.events.filter(e=>e.id!==id); saveData(); refreshAll(); toast('已删除'); }
@@ -3357,7 +3397,7 @@ function saveReport(){
     content:$('rp_content').value.trim(),plan:$('rp_plan').value.trim(),blocker:$('rp_blocker').value.trim(),attachments:$('rp_att').value.trim()};
   if(!o.title) return toast('请填写标题');
   if(!o.date) return toast('请选择日期');
-  DATA.reports.push(Object.assign({id:uid()},o));
+  DATA.reports.push(Object.assign({id:uid(),addTs:Date.now()},o));
   selectedDate=o.date; calDate=new Date(o.date);
   saveData(); closeModal(); refreshAll(); toast('已提交');
 }
@@ -3504,7 +3544,7 @@ function saveLink(id){
   const o={name:$('lk_name').value.trim(),url:$('lk_url').value.trim(),icon:$('lk_icon').value,color:$('lk_color').value,category:($('lk_cat').value.trim()||'未分类'),kind:$('lk_kind').value};
   if(!o.name||!o.url) return toast('请填写名称和链接');
   if(id){ const i=DATA.links.findIndex(x=>x.id===id); DATA.links[i]=Object.assign({},DATA.links[i],o); }
-  else DATA.links.push(Object.assign({id:uid()},o));
+  else DATA.links.push(Object.assign({id:uid(),addTs:Date.now()},o));
   /* 新栏目固化到顺序表，保证自定义栏目的位置稳定 */
   const cats=linkCats(); if(!cats.includes(o.category)){ cats.push(o.category); DATA.settings.linkCatOrder=cats; }
   saveData(); closeModal(); refreshAll(); toast('已保存');
@@ -4665,9 +4705,9 @@ function renderInspiration(){
     return;
   }
   if(!list.length){ box.innerHTML = '<div class="insp-empty">没有符合当前筛选条件的记录</div>'; return; }
-  box.innerHTML = list.map(inspCardHTML).join('');
+  box.innerHTML = list.map((it,i)=>inspCardHTML(it,i+1)).join('');
 }
-function inspCardHTML(it){
+function inspCardHTML(it,n){
   const st = it.status || 'open';
   const kind = it.kind || 'question';
   const cls = st==='answered' ? 'answered' : (st==='thinking' ? 'thinking' : '');
@@ -4677,7 +4717,7 @@ function inspCardHTML(it){
   return '<div class="insp-card '+cls+'">'+
     '<div class="insp-head">'+
       (it.star? '<span class="insp-star"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.6 5.6 6 .7-4.4 4.1 1.2 5.9L12 16.5 6.6 19.3l1.2-5.9L3.4 9.3l6-.7z"/></svg></span>' : '')+
-      '<div class="insp-title">'+esc(it.title||'未命名')+'</div>'+
+      '<div class="insp-title">'+(n!=null?seqBadge(n):'')+esc(it.title||'未命名')+'</div>'+
     '</div>'+
     '<div class="lab-tags" style="margin-top:8px">'+
       '<span class="lab-tag '+tagCls+'">'+esc(inspStatusName(st))+'</span>'+
@@ -4761,14 +4801,14 @@ function saveInsp(id){
         title, kind:labFieldVal('in_kind')||'question', status:labFieldVal('in_status')||'open',
         content:labFieldVal('in_content'), answer:labFieldVal('in_answer'),
         tags:labFieldVal('in_tags'), star:labFieldVal('in_star')==='1',
-        createdAt:old.createdAt||today, updatedAt:today
+        createdAt:old.createdAt||today, updatedAt:today, addTs:old.addTs||Date.now()
       });
     }
   }else{
     DATA.inspirations.push({ id:uid(), title, kind:labFieldVal('in_kind')||'question',
       status:labFieldVal('in_status')||'open', content:labFieldVal('in_content'),
       answer:labFieldVal('in_answer'), tags:labFieldVal('in_tags'),
-      star:labFieldVal('in_star')==='1', createdAt:today, updatedAt:today });
+      star:labFieldVal('in_star')==='1', addTs:Date.now(), createdAt:today, updatedAt:today });
   }
   saveData(); closeModal(); renderInspiration(); toast(id?'已更新':'已记录');
 }
@@ -5885,6 +5925,7 @@ function init(){
   tick(); setInterval(tick,30000);
   updatePomoUI();
   bindEvents();
+  ensureSortKeys();
   refreshAll();
   startQuoteTimer();   /* 语录自动随机轮换 */
   checkCloudSession();  /* 云端：检查登录态，已登录则自动同步 */
